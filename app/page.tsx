@@ -32,7 +32,7 @@ import {
   Wallet,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import { motion, useScroll, useSpring, useInView, AnimatePresence } from "framer-motion";
+import { motion, useScroll, useSpring, useInView, AnimatePresence, type Variants } from "framer-motion";
 
 /**
  * IMPORTANT:
@@ -859,13 +859,24 @@ const HeroKohostStyle = ({
   const wrapRef = useRef<HTMLDivElement | null>(null);
   const inView = useInView(wrapRef, { once: true, margin: "-20% 0px -20% 0px" });
 
-  const container = {
+  const container: Variants = {
     hidden: {},
-    show: { transition: { staggerChildren: 0.08, delayChildren: 0.12 } },
+    show: {
+      transition: { staggerChildren: 0.08, delayChildren: 0.12 },
+    },
   };
-  const item = {
+
+  const item: Variants = {
     hidden: { opacity: 0, y: 14, filter: "blur(8px)" },
-    show: { opacity: 1, y: 0, filter: "blur(0px)", transition: { duration: 0.75, ease: [0.2, 0.8, 0.2, 1] } },
+    show: {
+      opacity: 1,
+      y: 0,
+      filter: "blur(0px)",
+      transition: {
+        duration: 0.75,
+        ease: [0.2, 0.8, 0.2, 1] as [number, number, number, number],
+      },
+    },
   };
 
   const badges: { label: string; icon: LucideIcon }[] = [
