@@ -31,6 +31,7 @@ import {
   BadgeCheck,
   Wallet,
 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { motion, useScroll, useSpring, useInView, AnimatePresence } from "framer-motion";
 
 /**
@@ -45,6 +46,39 @@ import { motion, useScroll, useSpring, useInView, AnimatePresence } from "framer
  * - Clear calculator assumptions (sticky EMI uses 4.5% p.a. / 25 years)
  */
 
+type Persona = "resident" | "non_resident" | "national";
+
+type ConsentPayload = {
+  required: boolean;
+  optionalThirdParty: boolean;
+  method: string;
+  ts: string;
+};
+
+type Feature = {
+  k: string;
+  title: string;
+  desc: string;
+  chips: string[];
+  icon: LucideIcon;
+};
+
+type JourneyStep = {
+  id: string;
+  title: string;
+  desc: string;
+  icon: LucideIcon;
+  time: string;
+  risk: string;
+  tips: Record<Persona, string>;
+};
+
+type EligibilityResult = {
+  amount: number;
+  rangeLow: number;
+  rangeHigh: number;
+};
+
 // --- DESIGN TOKENS (used in inline <style>) ---
 const COLORS = {
   primary: "#116656",
@@ -53,13 +87,13 @@ const COLORS = {
 };
 
 // --- UTILS ---
-const clamp = (n, min, max) => Math.min(max, Math.max(min, n));
+const clamp = (n: number, min: number, max: number): number => Math.min(max, Math.max(min, n));
 
-const safeScrollToTop = () => {
+const safeScrollToTop = (): void => {
   if (typeof window !== "undefined") window.scrollTo({ top: 0, behavior: "smooth" });
 };
 
-const safeScrollToTarget = (targetId) => {
+const safeScrollToTarget = (targetId: string): void => {
   if (typeof window === "undefined" || !targetId) return;
   const el = document.getElementById(targetId);
   if (!el) return;
@@ -67,17 +101,17 @@ const safeScrollToTarget = (targetId) => {
   window.scrollTo({ top: offset, behavior: "smooth" });
 };
 
-const formatCurrency = (amount) => {
+const formatCurrency = (amount: number | string): string => {
   const n = Number(amount);
   if (!Number.isFinite(n)) return "0";
   return n.toLocaleString("en-US", { style: "decimal", maximumFractionDigits: 0 });
 };
 
 // --- DATA ---
-const BANKS = ["FAB", "Emirates NBD", "ADCB", "Dubai Islamic Bank", "RAKBANK", "Mashreq", "CBD", "HSBC"];
+const BANKS: string[] = ["FAB", "Emirates NBD", "ADCB", "Dubai Islamic Bank", "RAKBANK", "Mashreq", "CBD", "HSBC"];
 
 // FIX: Avoid duplicate id with the section id="eligibility"
-const JOURNEY_STEPS = [
+const JOURNEY_STEPS: JourneyStep[] = [
   {
     id: "budget_check",
     title: "Check Eligibility",
@@ -145,7 +179,7 @@ const JOURNEY_STEPS = [
   },
 ];
 
-const FEATURES = [
+const FEATURES: Feature[] = [
   {
     k: "Match",
     title: "Lender options via licensed partners",
@@ -184,7 +218,7 @@ const FEATURES = [
 ];
 
 // --- HELPER COMPONENTS ---
-const BaraqaMark = ({ dark = false }) => (
+const BaraqaMark = ({ dark = false }: { dark?: boolean }) => (
   <div className="relative w-9 h-9 rounded-xl overflow-hidden shadow-[0_10px_30px_rgba(0,0,0,0.18)]">
     <div className={`absolute inset-0 bg-gradient-to-br ${dark ? "from-[#116656] to-[#0E5548]" : "from-white to-slate-100"}`} />
     <div className={`absolute inset-[1px] rounded-[0.65rem] flex items-center justify-center ${dark ? "bg-white text-[#116656]" : "bg-[#116656] text-white"}`}>
@@ -193,7 +227,17 @@ const BaraqaMark = ({ dark = false }) => (
   </div>
 );
 
-const ServiceCard = ({ icon, title, desc, points }) => (
+const ServiceCard = ({
+  icon,
+  title,
+  desc,
+  points,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  desc: string;
+  points: string[];
+}) => (
   <div className="bg-white p-8 md:p-10 rounded-[2rem] border border-[#E0D8CC] hover:shadow-[0_20px_40px_-15px_rgba(17,102,86,0.15)] hover:border-[#116656]/30 transition-all duration-500 group h-full flex flex-col hover:-translate-y-1 relative z-10">
     <div className="w-16 h-16 bg-[#FAF4E8] text-[#116656] rounded-2xl flex items-center justify-center mb-8 group-hover:bg-[#116656] group-hover:text-white transition-all duration-500 shadow-sm group-hover:shadow-lg group-hover:shadow-[#116656]/20">
       {icon}
@@ -211,7 +255,17 @@ const ServiceCard = ({ icon, title, desc, points }) => (
   </div>
 );
 
-const JourneyStepCard = ({ step, index, activePersona, isActive }) => {
+const JourneyStepCard = ({
+  step,
+  index,
+  activePersona,
+  isActive,
+}: {
+  step: JourneyStep;
+  index: number;
+  activePersona: Persona;
+  isActive: boolean;
+}) => {
   const Icon = step.icon;
 
   return (
@@ -253,7 +307,7 @@ const JourneyStepCard = ({ step, index, activePersona, isActive }) => {
             <p className="text-xs font-bold text-[#116656] uppercase mb-1 flex items-center gap-2">
               <User size={12} /> Pro Tip for {String(activePersona).replace("_", " ")}s
             </p>
-            <p className="text-sm text-[#4A7A70] font-medium">{(step.tips && step.tips[activePersona]) || step.tips.resident}</p>
+            <p className="text-sm text-[#4A7A70] font-medium">{step.tips[activePersona] ?? step.tips.resident}</p>
           </div>
 
           <p className="mt-4 text-[11px] text-[#4A7A70]/70 font-semibold">*Timelines are estimates only and depend on third parties and lender processes.</p>
@@ -263,9 +317,9 @@ const JourneyStepCard = ({ step, index, activePersona, isActive }) => {
   );
 };
 
-const StickyEligibilityBar = ({ show }) => {
-  const [price, setPrice] = useState("1500000");
-  const [downPayment, setDownPayment] = useState("20");
+const StickyEligibilityBar = ({ show }: { show: boolean }) => {
+  const [price, setPrice] = useState<string>("1500000");
+  const [downPayment, setDownPayment] = useState<string>("20");
 
   const safePrice = Math.max(0, Number(price) || 0);
   const safeDown = clamp(Number(downPayment) || 0, 0, 100);
@@ -337,7 +391,7 @@ const StickyEligibilityBar = ({ show }) => {
   );
 };
 
-const LegalModal = ({ isOpen, onClose }) => {
+const LegalModal = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) => {
   if (!isOpen) return null;
 
   return (
@@ -450,14 +504,22 @@ const LegalModal = ({ isOpen, onClose }) => {
 // --- CONSENT HELPERS ---
 const CONSENT_STORAGE_KEY = "baraqa_consent_proof_v1";
 
-const buildConsentPayload = ({ required, optionalThirdParty, method }) => ({
+const buildConsentPayload = ({
+  required,
+  optionalThirdParty,
+  method,
+}: {
+  required: boolean;
+  optionalThirdParty: boolean;
+  method?: string;
+}): ConsentPayload => ({
   required: !!required,
   optionalThirdParty: !!optionalThirdParty,
   method: method || "website_checkbox",
   ts: new Date().toISOString(),
 });
 
-const persistConsentProof = (payload) => {
+const persistConsentProof = (payload: ConsentPayload): void => {
   if (typeof window === "undefined") return;
   try {
     window.localStorage.setItem(CONSENT_STORAGE_KEY, JSON.stringify(payload));
@@ -466,25 +528,33 @@ const persistConsentProof = (payload) => {
   }
 };
 
-const getConsentProof = () => {
+const getConsentProof = (): ConsentPayload | null => {
   if (typeof window === "undefined") return null;
   try {
     const raw = window.localStorage.getItem(CONSENT_STORAGE_KEY);
-    return raw ? JSON.parse(raw) : null;
+    return raw ? (JSON.parse(raw) as ConsentPayload) : null;
   } catch {
     return null;
   }
 };
 
 // --- ELIGIBILITY CALCULATOR ---
-const EligibilityCalculator = ({ id, embedded = true, onOpenLegal }) => {
-  const [income, setIncome] = useState("");
-  const [result, setResult] = useState(null);
+const EligibilityCalculator = ({
+  id,
+  embedded = true,
+  onOpenLegal,
+}: {
+  id?: string;
+  embedded?: boolean;
+  onOpenLegal: () => void;
+}) => {
+  const [income, setIncome] = useState<string>("");
+  const [result, setResult] = useState<EligibilityResult | null>(null);
 
   // Consent states (required gate for any submission/upload)
-  const [consentRequired, setConsentRequired] = useState(false);
-  const [consentThirdParty, setConsentThirdParty] = useState(false);
-  const [consentSaved, setConsentSaved] = useState(false);
+  const [consentRequired, setConsentRequired] = useState<boolean>(false);
+  const [consentThirdParty, setConsentThirdParty] = useState<boolean>(false);
+  const [consentSaved, setConsentSaved] = useState<boolean>(false);
 
   useEffect(() => {
     const proof = getConsentProof();
@@ -495,7 +565,7 @@ const EligibilityCalculator = ({ id, embedded = true, onOpenLegal }) => {
     }
   }, []);
 
-  const preventMinus = (e) => {
+  const preventMinus = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "-" || e.key === "e" || e.key === "E") e.preventDefault();
   };
 
@@ -706,8 +776,8 @@ const EligibilityCalculator = ({ id, embedded = true, onOpenLegal }) => {
 };
 
 // --- ONBOARDING FLOW ---
-const OnboardingFlow = ({ onBack, onOpenLegal }) => {
-  const [step, setStep] = useState(0);
+const OnboardingFlow = ({ onBack, onOpenLegal }: { onBack: () => void; onOpenLegal: () => void }) => {
+  const [step, setStep] = useState<number>(0);
 
   const stages = [
     { icon: <FileSignature size={28} />, title: "Signed Agreement", desc: "I have a contract in hand" },
@@ -777,8 +847,16 @@ const OnboardingFlow = ({ onBack, onOpenLegal }) => {
 };
 
 // --- HERO (kohost vibe) ---
-const HeroKohostStyle = ({ onPrimary, onSecondary, onOpenLegal }) => {
-  const wrapRef = useRef(null);
+const HeroKohostStyle = ({
+  onPrimary,
+  onSecondary,
+  onOpenLegal,
+}: {
+  onPrimary: () => void;
+  onSecondary: () => void;
+  onOpenLegal: () => void;
+}) => {
+  const wrapRef = useRef<HTMLDivElement | null>(null);
   const inView = useInView(wrapRef, { once: true, margin: "-20% 0px -20% 0px" });
 
   const container = {
@@ -790,7 +868,7 @@ const HeroKohostStyle = ({ onPrimary, onSecondary, onOpenLegal }) => {
     show: { opacity: 1, y: 0, filter: "blur(0px)", transition: { duration: 0.75, ease: [0.2, 0.8, 0.2, 1] } },
   };
 
-  const badges = [
+  const badges: { label: string; icon: LucideIcon }[] = [
     { label: "Fast pre-approval support*", icon: Clock },
     { label: "Multiple UAE lenders*", icon: Landmark },
     { label: "Zero Baraqa advisory fees*", icon: Wallet },
@@ -848,7 +926,7 @@ const HeroKohostStyle = ({ onPrimary, onSecondary, onOpenLegal }) => {
 };
 
 const BorrowerFlowStrip = () => {
-  const steps = [
+  const steps: { title: string; desc: string; icon: LucideIcon }[] = [
     { title: "Know your budget", desc: "Eligibility + down payment ranges in minutes.", icon: Calculator },
     { title: "Get bank-ready", desc: "Document checklist + submission hygiene.", icon: FileSignature },
     { title: "Close smoothly", desc: "FOL + transfer-day prep (third-party dependent).", icon: KeyRound },
@@ -890,17 +968,19 @@ const BorrowerFlowStrip = () => {
 
 // --- PINNED FEATURES ---
 const PinnedFeaturesKohostStyle = () => {
-  const wrapRef = useRef(null);
+  const wrapRef = useRef<HTMLElement | null>(null);
   const { scrollYProgress } = useScroll({ target: wrapRef, offset: ["start start", "end end"] });
 
-  const [active, setActive] = useState(0);
+  const [active, setActive] = useState<number>(0);
 
   useEffect(() => {
-    const unsub = scrollYProgress.on("change", (v) => {
+    const unsub = scrollYProgress.on("change", (v: number) => {
       const idx = clamp(Math.floor(v * FEATURES.length), 0, FEATURES.length - 1);
       setActive(idx);
     });
-    return () => unsub();
+    return () => {
+      unsub();
+    };
   }, [scrollYProgress]);
 
   const activeFeature = FEATURES[active];
@@ -988,7 +1068,7 @@ const PinnedFeaturesKohostStyle = () => {
 };
 
 // --- FOOTER ---
-const DarkFooter = ({ onLegal }) => (
+const DarkFooter = ({ onLegal }: { onLegal: () => void }) => (
   <footer className="bg-[#116656] border-t border-white/10">
     <div className="max-w-7xl mx-auto px-6 pt-20 pb-12">
       <div className="grid md:grid-cols-4 gap-12 mb-20">
@@ -1057,15 +1137,15 @@ const DarkFooter = ({ onLegal }) => (
 
 // --- MAIN APP COMPONENT ---
 export default function App() {
-  const [currentView, setCurrentView] = useState("home");
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [isLegalOpen, setIsLegalOpen] = useState(false);
-  const [scrolled, setScrolled] = useState(false);
+  const [currentView, setCurrentView] = useState<"home" | "onboarding">("home");
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState<boolean>(false);
+  const [isLegalOpen, setIsLegalOpen] = useState<boolean>(false);
+  const [scrolled, setScrolled] = useState<boolean>(false);
 
   // Journey State
-  const [activePersona, setActivePersona] = useState("resident"); // resident, non_resident, national
-  const [journeyProgress, setJourneyProgress] = useState(0);
-  const journeyRef = useRef(null);
+  const [activePersona, setActivePersona] = useState<Persona>("resident");
+  const [journeyProgress, setJourneyProgress] = useState<number>(0);
+  const journeyRef = useRef<HTMLElement | null>(null);
 
   const { scrollYProgress } = useScroll({ target: journeyRef, offset: ["start center", "end center"] });
   const smoothProgress = useSpring(scrollYProgress, { stiffness: 100, damping: 30, restDelta: 0.001 });
@@ -1077,11 +1157,13 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    const unsub = smoothProgress.on("change", (latest) => setJourneyProgress(latest));
-    return () => unsub();
+    const unsub = smoothProgress.on("change", (latest: number) => setJourneyProgress(latest));
+    return () => {
+      unsub();
+    };
   }, [smoothProgress]);
 
-  const handleGetStarted = (e) => {
+  const handleGetStarted = (e?: React.MouseEvent<HTMLElement>) => {
     if (e) e.preventDefault();
     setCurrentView("onboarding");
     safeScrollToTop();
@@ -1093,7 +1175,7 @@ export default function App() {
     safeScrollToTop();
   };
 
-  const handleNavigation = (e, targetId) => {
+  const handleNavigation = (e: React.MouseEvent<HTMLElement>, targetId: string) => {
     if (e) e.preventDefault();
     if (currentView !== "home") {
       setCurrentView("home");
@@ -1245,9 +1327,9 @@ export default function App() {
 
             <div className="inline-flex bg-[#FAF4E8] p-1 rounded-full shadow-inner mb-6 border border-[#E0D8CC]">
               {[
-                { id: "resident", label: "UAE Resident" },
-                { id: "non_resident", label: "Non-Resident" },
-                { id: "national", label: "UAE National" },
+                { id: "resident" as const, label: "UAE Resident" },
+                { id: "non_resident" as const, label: "Non-Resident" },
+                { id: "national" as const, label: "UAE National" },
               ].map((p) => (
                 <button
                   key={p.id}
